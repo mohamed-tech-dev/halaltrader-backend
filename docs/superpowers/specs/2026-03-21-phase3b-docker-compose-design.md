@@ -25,28 +25,68 @@ Note : yfinance fonctionne depuis Docker Desktop en local car le trafic sortant 
 ### `Dockerfile` (backend — halaltrader-backend/)
 
 Multi-stage :
-- **Stage `build`** : `maven:3.9-eclipse-temurin-21` — copie le projet, lance `./mvnw package -DskipTests`
-- **Stage `runtime`** : `eclipse-temurin:21-jre-jammy` — copie le JAR, expose 8080, lance `java -jar app.jar`
+- **Stage `build`** : `eclipse-temurin:21-jdk` — copie `.mvn/`, `mvnw`, `pom.xml`, puis `src/`. Lance `./mvnw package -DskipTests`.
+- **Stage `runtime`** : `eclipse-temurin:21-jre-jammy` — installe `curl` (`apt-get install -y curl --no-install-recommends`) pour le healthcheck, copie le JAR, expose 8080, lance `java -jar app.jar`.
 
-Variables d'environnement runtime :
-- `DB_URL` — injecté par docker-compose
-- `DB_USER` — injecté par docker-compose
-- `DB_PASS` — injecté par docker-compose
-- `ANTHROPIC_API_KEY` — injecté depuis `.env`
-- `MARKET_DATA_URL` — `http://market-data:8081`
+Variables d'environnement runtime injectées par docker-compose :
+- `DB_URL`, `DB_USER`, `DB_PASS`
+- `ANTHROPIC_API_KEY`
+- `MARKET_DATA_URL`
+- `CORS_ALLOWED_ORIGINS`
+
+### `.dockerignore` (backend — halaltrader-backend/)
+
+Exclut du build context :
+```
+target/
+.idea/
+*.iml
+.git/
+application-local.yml
+.env
+```
+
+`application-local.yml` contient une clé API en clair — elle ne doit jamais être copiée dans l'image.
 
 ### `halaltrader-frontend/Dockerfile`
 
 Multi-stage :
-- **Stage `build`** : `node:20-alpine` — `npm ci && npm run build` (avec `VITE_MOCK=false`)
-- **Stage `runtime`** : `nginx:alpine` — copie `dist/`, copie `nginx.conf`, expose 80
+- **Stage `build`** : `node:20-alpine` — `npm ci && npm run build` avec `VITE_MOCK=false` (ARG passé au build).
+- **Stage `runtime`** : `nginx:alpine` — copie `dist/`, copie `nginx.conf`, expose 80.
 
 ### `halaltrader-frontend/nginx.conf`
 
-- Écoute sur le port 80
-- `root /usr/share/nginx/html`
-- `try_files $uri /index.html` — support React Router
-- `location /api/ { proxy_pass http://backend:8080; }` — proxifie vers le backend container
+```nginx
+server {
+    listen 80;
+
+    root /usr/share/nginx/html;
+    index index.html;
+
+    # React Router — toutes les routes inconnues renvoient index.html
+    location / {
+        try_files $uri /index.html;
+    }
+
+    # Proxy API vers le backend Spring Boot
+    # /api/portfolio → http://backend:8080/api/portfolio
+    location /api/ {
+        proxy_pass http://backend:8080;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+    }
+}
+```
+
+Note : avec `proxy_pass http://backend:8080;` (sans trailing slash) et `location /api/`, nginx transmet l'URI complète incluant `/api/`. Les controllers Spring Boot étant mappés sous `/api/...`, le routage est correct.
+
+### `.env.example` (backend — halaltrader-backend/)
+
+```
+ANTHROPIC_API_KEY=sk-ant-...
+```
+
+À copier en `.env` et remplir avant le premier `docker-compose up`.
 
 ---
 
@@ -82,6 +122,7 @@ services:
       interval: 15s
       timeout: 10s
       retries: 3
+      start_period: 30s
 
   backend:
     build: .
@@ -94,6 +135,7 @@ services:
       DB_PASS: halal123
       ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY}
       MARKET_DATA_URL: http://market-data:8081
+      CORS_ALLOWED_ORIGINS: http://localhost
     depends_on:
       postgres:
         condition: service_healthy
@@ -104,6 +146,7 @@ services:
       interval: 15s
       timeout: 10s
       retries: 5
+      start_period: 60s
 
   frontend:
     build: ../halaltrader-frontend
@@ -124,50 +167,57 @@ volumes:
 
 ### `application.yml` (backend)
 
-Ajouter la prise en charge de `MARKET_DATA_URL` :
+Deux changements :
+
 ```yaml
 market-data:
   base-url: ${MARKET_DATA_URL:http://localhost:8081}
+
+app:
+  cors:
+    allowed-origins: ${CORS_ALLOWED_ORIGINS:http://localhost:5173}
 ```
 
-La propriété `base-url` existe déjà avec la valeur hardcodée `http://localhost:8081` — remplacer par cette expression pour la rendre injectable.
+`CORS_ALLOWED_ORIGINS` vaut `http://localhost:5173` en dev local, `http://localhost` en Docker.
 
 ### `market-data/main.py`
 
-Ajouter un endpoint `/health` simple :
+Ajouter un endpoint `/health` pour le healthcheck Docker :
+
 ```python
 @app.get("/health")
 def health():
     return {"status": "ok"}
 ```
 
-Nécessaire pour le `healthcheck` Docker du service market-data.
+### `pom.xml` (backend)
 
-### Spring Boot Actuator
+Ajouter Spring Boot Actuator pour exposer `/actuator/health` (utilisé par le healthcheck Docker du backend). Aucune configuration `management:` supplémentaire nécessaire — Spring Boot 3 expose `/actuator/health` par défaut en HTTP.
 
-Ajouter `spring-boot-starter-actuator` au `pom.xml` pour que le healthcheck backend fonctionne (`/actuator/health`).
-
-### `.env` (nouveau, gitignorée)
-
+```xml
+<dependency>
+    <groupId>org.springframework.boot</groupId>
+    <artifactId>spring-boot-starter-actuator</artifactId>
+</dependency>
 ```
-ANTHROPIC_API_KEY=sk-ant-...
-```
 
-Ajouter `.env` au `.gitignore` du backend.
+### `.gitignore` (backend)
+
+Ajouter `.env` s'il n'est pas déjà présent.
 
 ---
 
 ## Lancer la stack
 
 ```bash
-# Copier et remplir le fichier secrets
+# 1. Copier et remplir le fichier secrets
 cp .env.example .env
-# Éditer .env : mettre ANTHROPIC_API_KEY
+# Éditer .env : renseigner ANTHROPIC_API_KEY
 
-# Lancer tout
+# 2. Lancer tout
 docker-compose up --build
 
-# Ouvrir le dashboard
+# 3. Ouvrir le dashboard
 # http://localhost
 ```
 
