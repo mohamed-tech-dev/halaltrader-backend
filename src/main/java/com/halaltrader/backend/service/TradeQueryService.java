@@ -24,7 +24,8 @@ public class TradeQueryService {
 
     public Page<TradeDto> list(int page, int size) {
         var portfolio = portfolioQueryService.getPortfolio();
-        Pageable pageable = PageRequest.of(page, size, Sort.by("executedAt").descending());
+        int clampedSize = Math.min(size, 100);
+        Pageable pageable = PageRequest.of(page, clampedSize, Sort.by("executedAt").descending());
         return tradeRepository.findByPortfolio(portfolio, pageable)
                 .map(this::toDto);
     }
@@ -32,6 +33,10 @@ public class TradeQueryService {
     public TradeDetailDto getById(UUID id) {
         Trade t = tradeRepository.findById(id)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Trade not found"));
+        var portfolio = portfolioQueryService.getPortfolio();
+        if (!t.getPortfolio().getId().equals(portfolio.getId())) {
+            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Trade not found");
+        }
         return new TradeDetailDto(
                 t.getId(), t.getAsset().getSymbol(), t.getAction().name(),
                 t.getQuantity(), t.getPrice(), t.getTotalAmount(),
