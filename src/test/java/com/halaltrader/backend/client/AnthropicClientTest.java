@@ -1,5 +1,6 @@
 package com.halaltrader.backend.client;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import okhttp3.mockwebserver.MockResponse;
 import okhttp3.mockwebserver.MockWebServer;
 import org.junit.jupiter.api.AfterEach;
@@ -24,7 +25,7 @@ class AnthropicClientTest {
         WebClient webClient = WebClient.builder()
                 .baseUrl("http://localhost:" + server.getPort())
                 .build();
-        client = new AnthropicClient(webClient);
+        client = new AnthropicClient(webClient, new ObjectMapper());
     }
 
     @AfterEach

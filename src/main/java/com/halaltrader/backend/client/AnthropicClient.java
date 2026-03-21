@@ -17,10 +17,11 @@ public class AnthropicClient {
     private static final String MESSAGES_PATH = "/v1/messages";
 
     private final WebClient webClient;
-    private final ObjectMapper objectMapper = new ObjectMapper();
+    private final ObjectMapper objectMapper;
 
-    public AnthropicClient(@Qualifier("anthropicWebClient") WebClient webClient) {
+    public AnthropicClient(@Qualifier("anthropicWebClient") WebClient webClient, ObjectMapper objectMapper) {
         this.webClient = webClient;
+        this.objectMapper = objectMapper;
     }
 
     public String call(String model, String systemPrompt, String userMessage, int maxTokens) {
