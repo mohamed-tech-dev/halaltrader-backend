@@ -23,7 +23,6 @@ class AnthropicClientTest {
         server.start(InetAddress.getLoopbackAddress(), 0);
         WebClient webClient = WebClient.builder()
                 .baseUrl("http://localhost:" + server.getPort())
-                .defaultHeader("content-type", "application/json")
                 .build();
         client = new AnthropicClient(webClient);
     }
