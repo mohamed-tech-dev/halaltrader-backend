@@ -9,6 +9,7 @@ import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.stereotype.Component;
 import org.springframework.web.reactive.function.client.WebClient;
 
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -36,7 +37,12 @@ public class MarketDataClient {
                     .uri("/price/{symbol}", symbol)
                     .retrieve()
                     .bodyToMono(String.class)
+                    .timeout(Duration.ofSeconds(10))
                     .block();
+
+            if (priceJson == null) {
+                throw new RuntimeException("Empty response from market-data service for symbol: " + symbol);
+            }
 
             JsonNode price = objectMapper.readTree(priceJson);
 
@@ -66,6 +72,7 @@ public class MarketDataClient {
                     .uri("/news/{symbol}", symbol)
                     .retrieve()
                     .bodyToMono(String.class)
+                    .timeout(Duration.ofSeconds(5))
                     .block();
 
             JsonNode newsArray = objectMapper.readTree(newsJson);
