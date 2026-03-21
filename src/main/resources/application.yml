@@ -18,7 +18,12 @@ spring:
 
 anthropic:
   api-key: ${ANTHROPIC_API_KEY:}
-  model: claude-haiku-4-5
+  models:
+    halal-screener: claude-opus-4-6
+    market-analyst: claude-sonnet-4-6
+    risk-manager: claude-sonnet-4-6
+    decision: claude-opus-4-6
+    performance: claude-haiku-4-5-20251001
 
 trading:
   scheduler:
