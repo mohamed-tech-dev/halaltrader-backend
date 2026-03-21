@@ -2,12 +2,16 @@ package com.halaltrader.backend.entity;
 
 import jakarta.persistence.*;
 import lombok.Data;
+import lombok.EqualsAndHashCode;
+import lombok.ToString;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.UUID;
 
 @Data
+@EqualsAndHashCode(of = "id")
+@ToString(exclude = {"portfolio", "asset"})
 @Entity
 @Table(name = "trades")
 public class Trade {
