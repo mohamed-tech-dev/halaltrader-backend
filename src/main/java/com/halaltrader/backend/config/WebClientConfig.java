@@ -14,7 +14,6 @@ public class WebClientConfig {
                 .baseUrl("https://api.anthropic.com")
                 .defaultHeader("x-api-key", props.getApiKey())
                 .defaultHeader("anthropic-version", "2023-06-01")
-                .defaultHeader("content-type", "application/json")
                 .build();
     }
 
