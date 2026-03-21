@@ -45,5 +45,30 @@ class HalalScreenerAgentTest {
         HalalReport report = agent.analyze("BUD", "Anheuser-Busch", "STOCK", "Alcohol");
 
         assertThat(report.approved()).isFalse();
+        assertThat(report.reason()).isNotBlank();
+    }
+
+    @Test
+    void analyze_whenClientThrows_returnsFallbackRejected() {
+        when(props.model("halal-screener")).thenReturn("claude-opus-4-6");
+        when(anthropicClient.call(anyString(), anyString(), anyString(), anyInt()))
+                .thenThrow(new RuntimeException("API timeout"));
+
+        HalalReport report = agent.analyze("BUD", "Anheuser-Busch", "STOCK", "Alcohol");
+
+        assertThat(report.approved()).isFalse();
+        assertThat(report.reason()).contains("Screening error");
+    }
+
+    @Test
+    void analyze_whenResponseNotJson_returnsFallbackRejected() {
+        when(props.model("halal-screener")).thenReturn("claude-opus-4-6");
+        when(anthropicClient.call(anyString(), anyString(), anyString(), anyInt()))
+                .thenReturn("not valid json at all");
+
+        HalalReport report = agent.analyze("TEST", "Test Asset", "STOCK", "Tech");
+
+        assertThat(report.approved()).isFalse();
+        assertThat(report.reason()).contains("Screening error");
     }
 }
