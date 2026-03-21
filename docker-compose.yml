@@ -16,15 +16,9 @@ services:
       timeout: 5s
       retries: 5
 
-  market-data:
-    build: ./market-data
-    container_name: halaltrader-market-data
-    ports:
-      - "8081:8081"
-    depends_on:
-      postgres:
-        condition: service_healthy
-    restart: on-failure
+  # market-data runs on the host (not in Docker) during development
+  # Yahoo Finance blocks datacenter/Docker IPs — run locally with:
+  #   cd market-data && pip install -r requirements.txt && uvicorn main:app --port 8081
 
 volumes:
   postgres_data:

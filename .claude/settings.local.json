@@ -1,0 +1,21 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(mvn dependency:resolve -q)",
+      "Bash(mvn compile:*)",
+      "Bash(./mvnw compile:*)",
+      "Read(//c/Users/alkao/AppData/Local/Temp/claude/C--Users-alkao-OneDrive-Bureau-perso-halaltrader-backend/8c7d8da0-45b1-47ce-b8f8-6640d93f8044/tasks/**)",
+      "Bash(powershell.exe -Command \"Get-Command mvn -ErrorAction SilentlyContinue | Select-Object -ExpandProperty Source\")",
+      "Bash(powershell.exe -Command \"Get-ChildItem -Path 'C:\\\\Program Files' -Recurse -Filter 'mvn.cmd' -ErrorAction SilentlyContinue | Select-Object -First 3 -ExpandProperty FullName\")",
+      "Bash(\"/c/Program Files/JetBrains/IntelliJ IDEA 2024.1.1/plugins/maven/lib/maven3/bin/mvn.cmd\" compile -q)",
+      "Bash(powershell.exe -Command \"Get-ChildItem -Path 'C:\\\\Program Files\\\\Java','C:\\\\Program Files\\\\Eclipse Adoptium','C:\\\\Program Files\\\\Microsoft' -Recurse -Filter 'java.exe' -ErrorAction SilentlyContinue | Select-Object -ExpandProperty FullName | Head -10\")",
+      "Bash(powershell.exe -Command \"Get-ChildItem -Path 'C:\\\\Users\\\\alkao\\\\.jdks','C:\\\\Program Files\\\\Java' -Recurse -Filter 'java.exe' -ErrorAction SilentlyContinue | Select-Object -ExpandProperty FullName\" 2>&1)",
+      "Bash(JAVA_HOME=\"/c/Program Files/Java/jdk-21\" \"/c/Program Files/JetBrains/IntelliJ IDEA 2024.1.1/plugins/maven/lib/maven3/bin/mvn.cmd\" compile -q)",
+      "Read(//c/Users/alkao/AppData/Local/Programs//**)",
+      "Read(//c/Program Files//**)",
+      "Bash(echo:*)",
+      "Bash(powershell.exe -Command \"cd 'C:\\\\Users\\\\alkao\\\\OneDrive\\\\Bureau\\\\perso\\\\halaltrader-backend'; mvn compile -q 2>&1\")",
+      "Bash(JAVA_HOME=\"C:/Program Files/Java/jdk-21\" \"C:/Program Files/JetBrains/IntelliJ IDEA 2024.1.1/plugins/maven/lib/maven3/bin/mvn.cmd\" test -Dtest=AnthropicClientTest -q)"
+    ]
+  }
+}
