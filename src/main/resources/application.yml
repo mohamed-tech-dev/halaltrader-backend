@@ -35,8 +35,8 @@ trading:
     initial-cash: 100000
 
 market-data:
-  base-url: http://localhost:8081
+  base-url: ${MARKET_DATA_URL:http://localhost:8081}
 
 app:
   cors:
-    allowed-origins: http://localhost:5173
+    allowed-origins: ${CORS_ALLOWED_ORIGINS:http://localhost:5173}

@@ -5,6 +5,7 @@ import com.halaltrader.backend.client.MarketDataClient;
 import com.halaltrader.backend.dto.*;
 import com.halaltrader.backend.entity.*;
 import com.halaltrader.backend.repository.*;
+import com.halaltrader.backend.websocket.TradingEventPublisher;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
@@ -32,6 +33,7 @@ class TradingOrchestratorTest {
     @Mock PortfolioRepository portfolioRepository;
     @Mock PortfolioPositionRepository positionRepository;
     @Mock TradeExecutionService tradeExecutionService;
+    @Mock TradingEventPublisher tradingEventPublisher;
     @InjectMocks TradingOrchestrator orchestrator;
 
     private Asset buildAsset(String symbol) {

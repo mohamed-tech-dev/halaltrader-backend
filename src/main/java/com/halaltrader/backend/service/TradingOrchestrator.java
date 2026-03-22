@@ -6,6 +6,7 @@ import com.halaltrader.backend.client.MarketDataClient;
 import com.halaltrader.backend.dto.*;
 import com.halaltrader.backend.entity.*;
 import com.halaltrader.backend.repository.*;
+import com.halaltrader.backend.websocket.TradingEventPublisher;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
@@ -31,6 +32,7 @@ public class TradingOrchestrator {
     private final PortfolioRepository portfolioRepository;
     private final PortfolioPositionRepository positionRepository;
     private final TradeExecutionService tradeExecutionService;
+    private final TradingEventPublisher tradingEventPublisher;
     private final ObjectMapper objectMapper;
 
     public TradingOrchestrator(HalalScreenerAgent halalScreenerAgent,
@@ -43,6 +45,7 @@ public class TradingOrchestrator {
                                PortfolioRepository portfolioRepository,
                                PortfolioPositionRepository positionRepository,
                                TradeExecutionService tradeExecutionService,
+                               TradingEventPublisher tradingEventPublisher,
                                ObjectMapper objectMapper) {
         this.halalScreenerAgent = halalScreenerAgent;
         this.marketAnalystAgent = marketAnalystAgent;
@@ -54,6 +57,7 @@ public class TradingOrchestrator {
         this.portfolioRepository = portfolioRepository;
         this.positionRepository = positionRepository;
         this.tradeExecutionService = tradeExecutionService;
+        this.tradingEventPublisher = tradingEventPublisher;
         this.objectMapper = objectMapper;
     }
 
@@ -69,24 +73,28 @@ public class TradingOrchestrator {
         List<Asset> assets = assetRepository.findByHalalScreening(HalalScreening.APPROVED);
         log.info("[TradingOrchestrator] Starting cycle — {} assets, cash={}", assets.size(), portfolio.getCashBalance());
 
+        int executed = 0;
         for (Asset asset : assets) {
             try {
-                processAsset(portfolio, asset);
+                if (processAsset(portfolio, asset)) {
+                    executed++;
+                }
             } catch (Exception e) {
                 log.error("[TradingOrchestrator] Unexpected error for {} — skipping: {}", asset.getSymbol(), e.getMessage());
             }
         }
+        tradingEventPublisher.publishCycleComplete(executed);
         log.info("[TradingOrchestrator] Cycle complete");
     }
 
-    private void processAsset(Portfolio portfolio, Asset asset) {
+    private boolean processAsset(Portfolio portfolio, Asset asset) {
         String symbol = asset.getSymbol();
 
         HalalReport halal = halalScreenerAgent.analyze(
                 symbol, asset.getName(), asset.getAssetType().name(), asset.getSector());
         if (!halal.approved()) {
             log.info("[TradingOrchestrator] {} rejected by HalalScreener — stopping pipeline", symbol);
-            return;
+            return false;
         }
 
         MarketDataDto marketData = marketDataClient.getMarketData(symbol);
@@ -108,6 +116,14 @@ public class TradingOrchestrator {
 
         tradeExecutionService.execute(portfolio, asset, decision,
                 BigDecimal.valueOf(marketData.price()), pnl, auditJson);
+
+        if (decision.action() != TradeAction.HOLD) {
+            tradingEventPublisher.publishTradeExecuted(
+                    symbol, decision.action().name(), decision.quantity(),
+                    BigDecimal.valueOf(marketData.price()), decision.reasoning());
+            return true;
+        }
+        return false;
     }
 
     private String buildAuditJson(HalalReport halal, MarketAnalysisReport analysis,

@@ -1,4 +1,5 @@
 services:
+
   postgres:
     image: postgres:15
     container_name: halaltrader-postgres
@@ -16,9 +17,50 @@ services:
       timeout: 5s
       retries: 5
 
-  # market-data runs on the host (not in Docker) during development
-  # Yahoo Finance blocks datacenter/Docker IPs — run locally with:
-  #   cd market-data && pip install -r requirements.txt && uvicorn main:app --port 8081
+  market-data:
+    build: ./market-data
+    container_name: halaltrader-market-data
+    ports:
+      - "8081:8081"
+    healthcheck:
+      test: ["CMD-SHELL", "python -c \"import urllib.request; urllib.request.urlopen('http://localhost:8081/health')\""]
+      interval: 15s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+
+  backend:
+    build: .
+    container_name: halaltrader-backend
+    ports:
+      - "8080:8080"
+    environment:
+      DB_URL: jdbc:postgresql://postgres:5432/halaltrader
+      DB_USER: halal
+      DB_PASS: halal123
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY}
+      MARKET_DATA_URL: http://market-data:8081
+      CORS_ALLOWED_ORIGINS: http://localhost
+    depends_on:
+      postgres:
+        condition: service_healthy
+      market-data:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:8080/actuator/health || exit 1"]
+      interval: 15s
+      timeout: 10s
+      retries: 5
+      start_period: 60s
+
+  frontend:
+    build: ../halaltrader-frontend
+    container_name: halaltrader-frontend
+    ports:
+      - "80:80"
+    depends_on:
+      backend:
+        condition: service_healthy
 
 volumes:
   postgres_data:
