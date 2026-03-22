@@ -26,6 +26,9 @@ public class StatsQueryService {
     private final TradeRepository tradeRepository;
 
     @Transactional(readOnly = true)
+    // Session boundary is safe: PortfolioQueryService.getPortfolio() has no @Transactional
+    // annotation, so it participates in this outer transaction (Spring default REQUIRED propagation).
+    // The session stays open for the entire getStats() method, including lazy trade.getAsset() accesses.
     public StatsDto getStats() {
         var portfolio = portfolioQueryService.getPortfolio();
         List<Trade> trades = tradeRepository.findByPortfolioOrderByExecutedAtAsc(portfolio);
@@ -50,8 +53,9 @@ public class StatsQueryService {
 
         List<StatsDto.MonthlyEntry> monthlyPerf = new ArrayList<>();
         BigDecimal cumPnl = BigDecimal.ZERO;
-        for (var entry : byMonth.entrySet().stream()
-                .sorted(Map.Entry.comparingByKey()).toList()) {
+        // byMonth keys are in chronological order: LinkedHashMap preserves insertion order,
+        // and pnlTrades are already sorted by executedAt (via findByPortfolioOrderByExecutedAtAsc)
+        for (var entry : byMonth.entrySet()) {
             BigDecimal monthPnl = entry.getValue().stream()
                     .map(Trade::getSimulatedPnl)
                     .reduce(BigDecimal.ZERO, BigDecimal::add);
@@ -78,6 +82,7 @@ public class StatsQueryService {
                 curWin++; curLoss = 0;
                 maxWin = Math.max(maxWin, curWin);
             } else {
+                // pnl=0 is treated as non-win (negative), consistent with spec's "consécutives positives"
                 curLoss++; curWin = 0;
                 maxLoss = Math.max(maxLoss, curLoss);
             }
